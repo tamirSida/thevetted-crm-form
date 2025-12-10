@@ -1,26 +1,155 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faUser, faEnvelope, faPhone, faBuilding, faSpinner, faCheck } from '@fortawesome/free-solid-svg-icons';
+import {
+  faUser,
+  faEnvelope,
+  faBuilding,
+  faBriefcase,
+  faLinkedin,
+  faMapMarkerAlt,
+  faLightbulb,
+  faSpinner,
+  faCheck,
+  faTimes,
+} from '@fortawesome/free-solid-svg-icons';
+import { faLinkedin as faLinkedinBrand } from '@fortawesome/free-brands-svg-icons';
 
 interface FormData {
-  firstName: string;
-  lastName: string;
+  fullName: string;
   email: string;
-  phone: string;
-  company: string;
+  employer: string;
+  role: string;
+  linkedin: string;
+  location: string;
+  areaOfExpertise: string;
+  labels: string[];
+  resendSegments: string[];
   notes: string;
 }
 
 const initialFormData: FormData = {
-  firstName: '',
-  lastName: '',
+  fullName: '',
   email: '',
-  phone: '',
-  company: '',
+  employer: '',
+  role: '',
+  linkedin: '',
+  location: '',
+  areaOfExpertise: '',
+  labels: [],
+  resendSegments: [],
   notes: '',
 };
+
+// Placeholder options - to be updated
+const LABEL_OPTIONS = [
+  'Mentor',
+  'Advisor',
+  'Investor',
+  'Speaker',
+  'Consultant',
+  'Partner',
+];
+
+const RESEND_SEGMENT_OPTIONS = [
+  'Newsletter',
+  'Product Updates',
+  'Events',
+  'Marketing',
+];
+
+interface MultiSelectProps {
+  options: string[];
+  selected: string[];
+  onChange: (selected: string[]) => void;
+  placeholder: string;
+}
+
+function MultiSelect({ options, selected, onChange, placeholder }: MultiSelectProps) {
+  const [isOpen, setIsOpen] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
+        setIsOpen(false);
+      }
+    };
+
+    if (isOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isOpen]);
+
+  const toggleOption = (option: string) => {
+    if (selected.includes(option)) {
+      onChange(selected.filter((s) => s !== option));
+    } else {
+      onChange([...selected, option]);
+    }
+  };
+
+  const removeOption = (option: string) => {
+    onChange(selected.filter((s) => s !== option));
+  };
+
+  return (
+    <div className="relative" ref={containerRef}>
+      <div
+        onClick={() => setIsOpen(!isOpen)}
+        className="w-full min-h-[48px] px-4 py-2 border border-gray-300 rounded-lg cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent bg-white"
+      >
+        {selected.length === 0 ? (
+          <span className="text-gray-400">{placeholder}</span>
+        ) : (
+          <div className="flex flex-wrap gap-2">
+            {selected.map((item) => (
+              <span
+                key={item}
+                className="inline-flex items-center gap-1 px-2 py-1 bg-blue-100 text-blue-700 text-sm rounded"
+              >
+                {item}
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    removeOption(item);
+                  }}
+                  className="hover:text-blue-900"
+                >
+                  <FontAwesomeIcon icon={faTimes} className="w-3 h-3" />
+                </button>
+              </span>
+            ))}
+          </div>
+        )}
+      </div>
+      {isOpen && (
+        <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-48 overflow-y-auto">
+          {options.map((option) => (
+            <div
+              key={option}
+              onClick={() => toggleOption(option)}
+              className={`px-4 py-2 cursor-pointer hover:bg-gray-100 flex items-center justify-between ${
+                selected.includes(option) ? 'bg-blue-50' : ''
+              }`}
+            >
+              <span className="text-gray-900">{option}</span>
+              {selected.includes(option) && (
+                <FontAwesomeIcon icon={faCheck} className="w-4 h-4 text-blue-600" />
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function MainForm() {
   const [formData, setFormData] = useState<FormData>(initialFormData);
@@ -33,18 +162,33 @@ export default function MainForm() {
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
+  const handleMultiSelectChange = (field: 'labels' | 'resendSegments', value: string[]) => {
+    setFormData((prev) => ({ ...prev, [field]: value }));
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError('');
     setSuccess(false);
 
+    if (formData.labels.length === 0) {
+      setError('Please select at least one label');
+      setLoading(false);
+      return;
+    }
+
+    if (formData.resendSegments.length === 0) {
+      setError('Please select at least one Resend segment');
+      setLoading(false);
+      return;
+    }
+
     try {
       // TODO: Add Monday.com integration
       // TODO: Add Resend.com integration
       console.log('Form submitted:', formData);
 
-      // Simulate API call
       await new Promise((resolve) => setTimeout(resolve, 1000));
 
       setSuccess(true);
@@ -68,57 +212,34 @@ export default function MainForm() {
       {success && (
         <div className="p-3 text-sm text-green-600 bg-green-50 rounded-lg flex items-center gap-2">
           <FontAwesomeIcon icon={faCheck} className="w-4 h-4" />
-          Form submitted successfully!
+          Contact added successfully!
         </div>
       )}
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <div>
-          <label htmlFor="firstName" className="block text-sm font-medium text-gray-700 mb-1">
-            First Name
-          </label>
-          <div className="relative">
-            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
-              <FontAwesomeIcon icon={faUser} className="w-4 h-4" />
-            </span>
-            <input
-              id="firstName"
-              name="firstName"
-              type="text"
-              value={formData.firstName}
-              onChange={handleChange}
-              required
-              className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent text-gray-900"
-              placeholder="John"
-            />
-          </div>
-        </div>
-
-        <div>
-          <label htmlFor="lastName" className="block text-sm font-medium text-gray-700 mb-1">
-            Last Name
-          </label>
-          <div className="relative">
-            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
-              <FontAwesomeIcon icon={faUser} className="w-4 h-4" />
-            </span>
-            <input
-              id="lastName"
-              name="lastName"
-              type="text"
-              value={formData.lastName}
-              onChange={handleChange}
-              required
-              className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent text-gray-900"
-              placeholder="Doe"
-            />
-          </div>
+      <div>
+        <label htmlFor="fullName" className="block text-sm font-medium text-gray-700 mb-1">
+          Full Name <span className="text-red-500">*</span>
+        </label>
+        <div className="relative">
+          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
+            <FontAwesomeIcon icon={faUser} className="w-4 h-4" />
+          </span>
+          <input
+            id="fullName"
+            name="fullName"
+            type="text"
+            value={formData.fullName}
+            onChange={handleChange}
+            required
+            className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent text-gray-900"
+            placeholder="John Doe"
+          />
         </div>
       </div>
 
       <div>
         <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
-          Email
+          Email <span className="text-red-500">*</span>
         </label>
         <div className="relative">
           <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
@@ -138,43 +259,127 @@ export default function MainForm() {
       </div>
 
       <div>
-        <label htmlFor="phone" className="block text-sm font-medium text-gray-700 mb-1">
-          Phone
-        </label>
-        <div className="relative">
-          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
-            <FontAwesomeIcon icon={faPhone} className="w-4 h-4" />
-          </span>
-          <input
-            id="phone"
-            name="phone"
-            type="tel"
-            value={formData.phone}
-            onChange={handleChange}
-            className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent text-gray-900"
-            placeholder="+1 (555) 000-0000"
-          />
-        </div>
-      </div>
-
-      <div>
-        <label htmlFor="company" className="block text-sm font-medium text-gray-700 mb-1">
-          Company
+        <label htmlFor="employer" className="block text-sm font-medium text-gray-700 mb-1">
+          Employer/Organization
         </label>
         <div className="relative">
           <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
             <FontAwesomeIcon icon={faBuilding} className="w-4 h-4" />
           </span>
           <input
-            id="company"
-            name="company"
+            id="employer"
+            name="employer"
             type="text"
-            value={formData.company}
+            value={formData.employer}
             onChange={handleChange}
             className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent text-gray-900"
             placeholder="Acme Inc."
           />
         </div>
+      </div>
+
+      <div>
+        <label htmlFor="role" className="block text-sm font-medium text-gray-700 mb-1">
+          Role
+        </label>
+        <div className="relative">
+          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
+            <FontAwesomeIcon icon={faBriefcase} className="w-4 h-4" />
+          </span>
+          <input
+            id="role"
+            name="role"
+            type="text"
+            value={formData.role}
+            onChange={handleChange}
+            className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent text-gray-900"
+            placeholder="Software Engineer"
+          />
+        </div>
+      </div>
+
+      <div>
+        <label htmlFor="linkedin" className="block text-sm font-medium text-gray-700 mb-1">
+          LinkedIn
+        </label>
+        <div className="relative">
+          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
+            <FontAwesomeIcon icon={faLinkedinBrand} className="w-4 h-4" />
+          </span>
+          <input
+            id="linkedin"
+            name="linkedin"
+            type="url"
+            value={formData.linkedin}
+            onChange={handleChange}
+            className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent text-gray-900"
+            placeholder="https://linkedin.com/in/johndoe"
+          />
+        </div>
+      </div>
+
+      <div>
+        <label htmlFor="location" className="block text-sm font-medium text-gray-700 mb-1">
+          Location (City, State)
+        </label>
+        <div className="relative">
+          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
+            <FontAwesomeIcon icon={faMapMarkerAlt} className="w-4 h-4" />
+          </span>
+          <input
+            id="location"
+            name="location"
+            type="text"
+            value={formData.location}
+            onChange={handleChange}
+            className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent text-gray-900"
+            placeholder="San Francisco, CA"
+          />
+        </div>
+      </div>
+
+      <div>
+        <label htmlFor="areaOfExpertise" className="block text-sm font-medium text-gray-700 mb-1">
+          Area of Expertise
+        </label>
+        <div className="relative">
+          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
+            <FontAwesomeIcon icon={faLightbulb} className="w-4 h-4" />
+          </span>
+          <input
+            id="areaOfExpertise"
+            name="areaOfExpertise"
+            type="text"
+            value={formData.areaOfExpertise}
+            onChange={handleChange}
+            className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent text-gray-900"
+            placeholder="Product Management, AI/ML"
+          />
+        </div>
+      </div>
+
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1">
+          Label (How they can help) <span className="text-red-500">*</span>
+        </label>
+        <MultiSelect
+          options={LABEL_OPTIONS}
+          selected={formData.labels}
+          onChange={(value) => handleMultiSelectChange('labels', value)}
+          placeholder="Select labels..."
+        />
+      </div>
+
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1">
+          Resend Segment <span className="text-red-500">*</span>
+        </label>
+        <MultiSelect
+          options={RESEND_SEGMENT_OPTIONS}
+          selected={formData.resendSegments}
+          onChange={(value) => handleMultiSelectChange('resendSegments', value)}
+          placeholder="Select segments..."
+        />
       </div>
 
       <div>
@@ -203,7 +408,7 @@ export default function MainForm() {
             Submitting...
           </>
         ) : (
-          'Submit'
+          'Add Contact'
         )}
       </button>
     </form>
