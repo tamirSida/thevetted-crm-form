@@ -511,7 +511,7 @@ export default function MainForm() {
             value={formData.employer}
             onChange={handleChange}
             className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent text-gray-900"
-            placeholder="Acme Inc."
+            placeholder="Company Name..."
           />
         </div>
       </div>

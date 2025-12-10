@@ -109,20 +109,25 @@ export async function POST(request: Request) {
 
     const contactId = contactData.id;
 
-    // Step 2: Add contact to each selected segment
-    const segmentResults = await Promise.all(
-      body.segmentIds.map(async (segmentId) => {
-        try {
-          await resendRequest(`/contacts/${contactId}/segments/${segmentId}`, {
-            method: 'POST',
-          });
-          return { segmentId, success: true };
-        } catch (error) {
-          console.error(`Error adding contact to segment ${segmentId}:`, error);
-          return { segmentId, success: false, error: String(error) };
+    // Step 2: Add contact to each selected segment (sequentially to avoid rate limits)
+    const segmentResults: { segmentId: string; success: boolean; error?: string }[] = [];
+
+    for (const segmentId of body.segmentIds) {
+      try {
+        await resendRequest(`/contacts/${contactId}/segments/${segmentId}`, {
+          method: 'POST',
+        });
+        segmentResults.push({ segmentId, success: true });
+
+        // Small delay to respect rate limit (2 requests/second)
+        if (body.segmentIds.indexOf(segmentId) < body.segmentIds.length - 1) {
+          await new Promise((resolve) => setTimeout(resolve, 550));
         }
-      })
-    );
+      } catch (error) {
+        console.error(`Error adding contact to segment ${segmentId}:`, error);
+        segmentResults.push({ segmentId, success: false, error: String(error) });
+      }
+    }
 
     const failedSegments = segmentResults.filter((r) => !r.success);
 

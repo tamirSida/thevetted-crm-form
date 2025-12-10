@@ -133,9 +133,9 @@ export async function POST(request: Request) {
       columnValues['text_2__1'] = body.linkedin;
     }
 
-    // Note: location__1 is a location type column that requires lat/lng
-    // For now, we skip it since we only have text address
-    // If you need location, consider adding a text column for it in Monday.com
+    if (body.location) {
+      columnValues['text_mkygj17w'] = body.location;
+    }
 
     if (body.areaOfExpertise && body.areaOfExpertise.length > 0) {
       columnValues['dropdown5__1'] = { ids: body.areaOfExpertise };
