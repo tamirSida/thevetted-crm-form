@@ -7,14 +7,20 @@ import {
   faEnvelope,
   faBuilding,
   faBriefcase,
-  faLinkedin,
   faMapMarkerAlt,
   faLightbulb,
   faSpinner,
   faCheck,
   faTimes,
+  faSearch,
+  faTag,
 } from '@fortawesome/free-solid-svg-icons';
 import { faLinkedin as faLinkedinBrand } from '@fortawesome/free-brands-svg-icons';
+
+interface DropdownOption {
+  id: number;
+  name: string;
+}
 
 interface FormData {
   fullName: string;
@@ -23,8 +29,8 @@ interface FormData {
   role: string;
   linkedin: string;
   location: string;
-  areaOfExpertise: string;
-  labels: string[];
+  areaOfExpertise: number[];
+  labels: number[];
   resendSegments: string[];
   notes: string;
 }
@@ -36,21 +42,11 @@ const initialFormData: FormData = {
   role: '',
   linkedin: '',
   location: '',
-  areaOfExpertise: '',
+  areaOfExpertise: [],
   labels: [],
   resendSegments: [],
   notes: '',
 };
-
-// Placeholder options - to be updated
-const LABEL_OPTIONS = [
-  'Mentor',
-  'Advisor',
-  'Investor',
-  'Speaker',
-  'Consultant',
-  'Partner',
-];
 
 const RESEND_SEGMENT_OPTIONS = [
   'Newsletter',
@@ -59,14 +55,155 @@ const RESEND_SEGMENT_OPTIONS = [
   'Marketing',
 ];
 
-interface MultiSelectProps {
+interface SearchableMultiSelectProps {
+  options: DropdownOption[];
+  selected: number[];
+  onChange: (selected: number[]) => void;
+  placeholder: string;
+  loading?: boolean;
+}
+
+function SearchableMultiSelect({
+  options,
+  selected,
+  onChange,
+  placeholder,
+  loading,
+}: SearchableMultiSelectProps) {
+  const [isOpen, setIsOpen] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const containerRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
+        setIsOpen(false);
+        setSearchTerm('');
+      }
+    };
+
+    if (isOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isOpen]);
+
+  useEffect(() => {
+    if (isOpen && inputRef.current) {
+      inputRef.current.focus();
+    }
+  }, [isOpen]);
+
+  const filteredOptions = options.filter((option) =>
+    option.name.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  const selectedOptions = options.filter((opt) => selected.includes(opt.id));
+
+  const toggleOption = (optionId: number) => {
+    if (selected.includes(optionId)) {
+      onChange(selected.filter((id) => id !== optionId));
+    } else {
+      onChange([...selected, optionId]);
+    }
+  };
+
+  const removeOption = (optionId: number) => {
+    onChange(selected.filter((id) => id !== optionId));
+  };
+
+  return (
+    <div className="relative" ref={containerRef}>
+      <div
+        onClick={() => setIsOpen(true)}
+        className="w-full min-h-[48px] px-4 py-2 border border-gray-300 rounded-lg cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent bg-white"
+      >
+        {loading ? (
+          <span className="text-gray-400 flex items-center gap-2">
+            <FontAwesomeIcon icon={faSpinner} className="w-4 h-4 animate-spin" />
+            Loading options...
+          </span>
+        ) : selectedOptions.length === 0 ? (
+          <span className="text-gray-400">{placeholder}</span>
+        ) : (
+          <div className="flex flex-wrap gap-2">
+            {selectedOptions.map((option) => (
+              <span
+                key={option.id}
+                className="inline-flex items-center gap-1 px-2 py-1 bg-blue-100 text-blue-700 text-sm rounded"
+              >
+                {option.name}
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    removeOption(option.id);
+                  }}
+                  className="hover:text-blue-900"
+                >
+                  <FontAwesomeIcon icon={faTimes} className="w-3 h-3" />
+                </button>
+              </span>
+            ))}
+          </div>
+        )}
+      </div>
+      {isOpen && !loading && (
+        <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg">
+          <div className="p-2 border-b border-gray-200">
+            <div className="relative">
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
+                <FontAwesomeIcon icon={faSearch} className="w-4 h-4" />
+              </span>
+              <input
+                ref={inputRef}
+                type="text"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent text-gray-900"
+                placeholder="Search..."
+                onClick={(e) => e.stopPropagation()}
+              />
+            </div>
+          </div>
+          <div className="max-h-48 overflow-y-auto">
+            {filteredOptions.length === 0 ? (
+              <div className="px-4 py-3 text-gray-500 text-sm">No options found</div>
+            ) : (
+              filteredOptions.map((option) => (
+                <div
+                  key={option.id}
+                  onClick={() => toggleOption(option.id)}
+                  className={`px-4 py-2 cursor-pointer hover:bg-gray-100 flex items-center justify-between ${
+                    selected.includes(option.id) ? 'bg-blue-50' : ''
+                  }`}
+                >
+                  <span className="text-gray-900">{option.name}</span>
+                  {selected.includes(option.id) && (
+                    <FontAwesomeIcon icon={faCheck} className="w-4 h-4 text-blue-600" />
+                  )}
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+interface SimpleMultiSelectProps {
   options: string[];
   selected: string[];
   onChange: (selected: string[]) => void;
   placeholder: string;
 }
 
-function MultiSelect({ options, selected, onChange, placeholder }: MultiSelectProps) {
+function SimpleMultiSelect({ options, selected, onChange, placeholder }: SimpleMultiSelectProps) {
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -156,14 +293,34 @@ export default function MainForm() {
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState('');
+  const [optionsLoading, setOptionsLoading] = useState(true);
+  const [areaOfExpertiseOptions, setAreaOfExpertiseOptions] = useState<DropdownOption[]>([]);
+  const [labelOptions, setLabelOptions] = useState<DropdownOption[]>([]);
+
+  useEffect(() => {
+    const fetchOptions = async () => {
+      try {
+        const response = await fetch('/api/monday');
+        if (!response.ok) {
+          throw new Error('Failed to fetch options');
+        }
+        const data = await response.json();
+        setAreaOfExpertiseOptions(data.areaOfExpertise || []);
+        setLabelOptions(data.labels || []);
+      } catch (err) {
+        console.error('Error fetching Monday.com options:', err);
+        setError('Failed to load form options. Please refresh the page.');
+      } finally {
+        setOptionsLoading(false);
+      }
+    };
+
+    fetchOptions();
+  }, []);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
-  };
-
-  const handleMultiSelectChange = (field: 'labels' | 'resendSegments', value: string[]) => {
-    setFormData((prev) => ({ ...prev, [field]: value }));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -171,6 +328,12 @@ export default function MainForm() {
     setLoading(true);
     setError('');
     setSuccess(false);
+
+    if (formData.areaOfExpertise.length === 0) {
+      setError('Please select at least one area of expertise');
+      setLoading(false);
+      return;
+    }
 
     if (formData.labels.length === 0) {
       setError('Please select at least one label');
@@ -185,16 +348,36 @@ export default function MainForm() {
     }
 
     try {
-      // TODO: Add Monday.com integration
-      // TODO: Add Resend.com integration
-      console.log('Form submitted:', formData);
+      const response = await fetch('/api/monday', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          fullName: formData.fullName,
+          email: formData.email,
+          employer: formData.employer,
+          role: formData.role,
+          linkedin: formData.linkedin,
+          location: formData.location,
+          areaOfExpertise: formData.areaOfExpertise,
+          labels: formData.labels,
+          notes: formData.notes,
+        }),
+      });
 
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to submit form');
+      }
+
+      // TODO: Add Resend.com integration
+      console.log('Resend segments:', formData.resendSegments);
 
       setSuccess(true);
       setFormData(initialFormData);
     } catch (err) {
-      setError('Failed to submit form. Please try again.');
+      setError(err instanceof Error ? err.message : 'Failed to submit form. Please try again.');
       console.error(err);
     } finally {
       setLoading(false);
@@ -339,34 +522,30 @@ export default function MainForm() {
       </div>
 
       <div>
-        <label htmlFor="areaOfExpertise" className="block text-sm font-medium text-gray-700 mb-1">
-          Area of Expertise
+        <label className="block text-sm font-medium text-gray-700 mb-1">
+          <FontAwesomeIcon icon={faLightbulb} className="w-4 h-4 mr-1 text-gray-400" />
+          Area of Expertise <span className="text-red-500">*</span>
         </label>
-        <div className="relative">
-          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
-            <FontAwesomeIcon icon={faLightbulb} className="w-4 h-4" />
-          </span>
-          <input
-            id="areaOfExpertise"
-            name="areaOfExpertise"
-            type="text"
-            value={formData.areaOfExpertise}
-            onChange={handleChange}
-            className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent text-gray-900"
-            placeholder="Product Management, AI/ML"
-          />
-        </div>
+        <SearchableMultiSelect
+          options={areaOfExpertiseOptions}
+          selected={formData.areaOfExpertise}
+          onChange={(value) => setFormData((prev) => ({ ...prev, areaOfExpertise: value }))}
+          placeholder="Search and select from Monday.com..."
+          loading={optionsLoading}
+        />
       </div>
 
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-1">
+          <FontAwesomeIcon icon={faTag} className="w-4 h-4 mr-1 text-gray-400" />
           Label (How they can help) <span className="text-red-500">*</span>
         </label>
-        <MultiSelect
-          options={LABEL_OPTIONS}
+        <SearchableMultiSelect
+          options={labelOptions}
           selected={formData.labels}
-          onChange={(value) => handleMultiSelectChange('labels', value)}
-          placeholder="Select labels..."
+          onChange={(value) => setFormData((prev) => ({ ...prev, labels: value }))}
+          placeholder="Search and select from Monday.com..."
+          loading={optionsLoading}
         />
       </div>
 
@@ -374,10 +553,10 @@ export default function MainForm() {
         <label className="block text-sm font-medium text-gray-700 mb-1">
           Resend Segment <span className="text-red-500">*</span>
         </label>
-        <MultiSelect
+        <SimpleMultiSelect
           options={RESEND_SEGMENT_OPTIONS}
           selected={formData.resendSegments}
-          onChange={(value) => handleMultiSelectChange('resendSegments', value)}
+          onChange={(value) => setFormData((prev) => ({ ...prev, resendSegments: value }))}
           placeholder="Select segments..."
         />
       </div>
@@ -399,7 +578,7 @@ export default function MainForm() {
 
       <button
         type="submit"
-        disabled={loading}
+        disabled={loading || optionsLoading}
         className="w-full py-3 px-4 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white font-medium rounded-lg transition-colors flex items-center justify-center gap-2"
       >
         {loading ? (
