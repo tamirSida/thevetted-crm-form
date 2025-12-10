@@ -166,8 +166,22 @@ export async function POST(request: Request) {
 
     const data = await mondayRequest(mutation, variables);
 
+    // Check if item was created successfully (prioritize success over warnings)
+    if (data.data?.create_item) {
+      if (data.errors) {
+        // Log warnings but don't fail
+        console.warn('Monday.com warnings:', JSON.stringify(data.errors, null, 2));
+      }
+      return NextResponse.json({
+        success: true,
+        item: data.data.create_item,
+      });
+    }
+
+    // Only fail if there are errors AND no successful creation
     if (data.errors) {
       console.error('Monday.com mutation errors:', JSON.stringify(data.errors, null, 2));
+      console.error('Full error data:', JSON.stringify(data.errors[0]?.extensions?.error_data, null, 2));
       console.error('Column values sent:', JSON.stringify(columnValues, null, 2));
       const errorMessage = data.errors[0]?.message || 'Failed to create item in Monday.com';
       return NextResponse.json(
@@ -176,10 +190,10 @@ export async function POST(request: Request) {
       );
     }
 
-    return NextResponse.json({
-      success: true,
-      item: data.data.create_item,
-    });
+    return NextResponse.json(
+      { error: 'Unexpected response from Monday.com' },
+      { status: 500 }
+    );
   } catch (error) {
     console.error('Error creating Monday.com item:', error);
     return NextResponse.json(
