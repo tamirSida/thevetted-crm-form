@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import { useAuth } from '@/contexts/AuthContext';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faSignOutAlt } from '@fortawesome/free-solid-svg-icons';
@@ -10,7 +11,14 @@ export default function Header() {
   return (
     <header className="border-b border-gray-200 bg-white">
       <div className="max-w-2xl mx-auto px-4 py-4 flex items-center justify-between">
-        <h1 className="text-lg font-semibold text-gray-900">Vetted CRM</h1>
+        <Image
+          src="/logo2.png"
+          alt="Vetted CRM"
+          width={120}
+          height={40}
+          className="h-8 w-auto"
+          priority
+        />
         <div className="flex items-center gap-4">
           <span className="text-sm text-gray-600 hidden sm:block">
             {user?.email}
