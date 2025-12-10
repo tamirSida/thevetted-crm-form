@@ -9,6 +9,7 @@ import {
   setPersistence,
   browserLocalPersistence,
   browserSessionPersistence,
+  sendPasswordResetEmail,
 } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
 import Cookies from 'js-cookie';
@@ -18,6 +19,7 @@ interface AuthContextType {
   loading: boolean;
   signIn: (email: string, password: string, rememberMe: boolean) => Promise<void>;
   signOut: () => Promise<void>;
+  resetPassword: (email: string) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -55,8 +57,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     Cookies.remove(AUTH_COOKIE_NAME);
   };
 
+  const resetPassword = async (email: string) => {
+    await sendPasswordResetEmail(auth, email);
+  };
+
   return (
-    <AuthContext.Provider value={{ user, loading, signIn, signOut }}>
+    <AuthContext.Provider value={{ user, loading, signIn, signOut, resetPassword }}>
       {children}
     </AuthContext.Provider>
   );
