@@ -22,6 +22,11 @@ interface DropdownOption {
   name: string;
 }
 
+interface ResendSegment {
+  id: string;
+  name: string;
+}
+
 interface FormData {
   fullName: string;
   email: string;
@@ -47,13 +52,6 @@ const initialFormData: FormData = {
   resendSegments: [],
   notes: '',
 };
-
-const RESEND_SEGMENT_OPTIONS = [
-  'Newsletter',
-  'Product Updates',
-  'Events',
-  'Marketing',
-];
 
 interface SearchableMultiSelectProps {
   options: DropdownOption[];
@@ -196,14 +194,21 @@ function SearchableMultiSelect({
   );
 }
 
-interface SimpleMultiSelectProps {
-  options: string[];
+interface ResendSegmentSelectProps {
+  options: ResendSegment[];
   selected: string[];
   onChange: (selected: string[]) => void;
   placeholder: string;
+  loading?: boolean;
 }
 
-function SimpleMultiSelect({ options, selected, onChange, placeholder }: SimpleMultiSelectProps) {
+function ResendSegmentSelect({
+  options,
+  selected,
+  onChange,
+  placeholder,
+  loading,
+}: ResendSegmentSelectProps) {
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -223,17 +228,19 @@ function SimpleMultiSelect({ options, selected, onChange, placeholder }: SimpleM
     };
   }, [isOpen]);
 
-  const toggleOption = (option: string) => {
-    if (selected.includes(option)) {
-      onChange(selected.filter((s) => s !== option));
+  const toggleOption = (optionId: string) => {
+    if (selected.includes(optionId)) {
+      onChange(selected.filter((id) => id !== optionId));
     } else {
-      onChange([...selected, option]);
+      onChange([...selected, optionId]);
     }
   };
 
-  const removeOption = (option: string) => {
-    onChange(selected.filter((s) => s !== option));
+  const removeOption = (optionId: string) => {
+    onChange(selected.filter((id) => id !== optionId));
   };
+
+  const selectedOptions = options.filter((opt) => selected.includes(opt.id));
 
   return (
     <div className="relative" ref={containerRef}>
@@ -241,21 +248,26 @@ function SimpleMultiSelect({ options, selected, onChange, placeholder }: SimpleM
         onClick={() => setIsOpen(!isOpen)}
         className="w-full min-h-[48px] px-4 py-2 border border-gray-300 rounded-lg cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent bg-white"
       >
-        {selected.length === 0 ? (
+        {loading ? (
+          <span className="text-gray-400 flex items-center gap-2">
+            <FontAwesomeIcon icon={faSpinner} className="w-4 h-4 animate-spin" />
+            Loading segments...
+          </span>
+        ) : selectedOptions.length === 0 ? (
           <span className="text-gray-400">{placeholder}</span>
         ) : (
           <div className="flex flex-wrap gap-2">
-            {selected.map((item) => (
+            {selectedOptions.map((option) => (
               <span
-                key={item}
+                key={option.id}
                 className="inline-flex items-center gap-1 px-2 py-1 bg-blue-100 text-blue-700 text-sm rounded"
               >
-                {item}
+                {option.name}
                 <button
                   type="button"
                   onClick={(e) => {
                     e.stopPropagation();
-                    removeOption(item);
+                    removeOption(option.id);
                   }}
                   className="hover:text-blue-900"
                 >
@@ -266,22 +278,26 @@ function SimpleMultiSelect({ options, selected, onChange, placeholder }: SimpleM
           </div>
         )}
       </div>
-      {isOpen && (
+      {isOpen && !loading && (
         <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-48 overflow-y-auto">
-          {options.map((option) => (
-            <div
-              key={option}
-              onClick={() => toggleOption(option)}
-              className={`px-4 py-2 cursor-pointer hover:bg-gray-100 flex items-center justify-between ${
-                selected.includes(option) ? 'bg-blue-50' : ''
-              }`}
-            >
-              <span className="text-gray-900">{option}</span>
-              {selected.includes(option) && (
-                <FontAwesomeIcon icon={faCheck} className="w-4 h-4 text-blue-600" />
-              )}
-            </div>
-          ))}
+          {options.length === 0 ? (
+            <div className="px-4 py-3 text-gray-500 text-sm">No segments available</div>
+          ) : (
+            options.map((option) => (
+              <div
+                key={option.id}
+                onClick={() => toggleOption(option.id)}
+                className={`px-4 py-2 cursor-pointer hover:bg-gray-100 flex items-center justify-between ${
+                  selected.includes(option.id) ? 'bg-blue-50' : ''
+                }`}
+              >
+                <span className="text-gray-900">{option.name}</span>
+                {selected.includes(option.id) && (
+                  <FontAwesomeIcon icon={faCheck} className="w-4 h-4 text-blue-600" />
+                )}
+              </div>
+            ))
+          )}
         </div>
       )}
     </div>
@@ -294,11 +310,13 @@ export default function MainForm() {
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState('');
   const [optionsLoading, setOptionsLoading] = useState(true);
+  const [resendLoading, setResendLoading] = useState(true);
   const [areaOfExpertiseOptions, setAreaOfExpertiseOptions] = useState<DropdownOption[]>([]);
   const [labelOptions, setLabelOptions] = useState<DropdownOption[]>([]);
+  const [resendSegmentOptions, setResendSegmentOptions] = useState<ResendSegment[]>([]);
 
   useEffect(() => {
-    const fetchOptions = async () => {
+    const fetchMondayOptions = async () => {
       try {
         const response = await fetch('/api/monday');
         if (!response.ok) {
@@ -315,7 +333,23 @@ export default function MainForm() {
       }
     };
 
-    fetchOptions();
+    const fetchResendSegments = async () => {
+      try {
+        const response = await fetch('/api/resend');
+        if (!response.ok) {
+          throw new Error('Failed to fetch Resend segments');
+        }
+        const data = await response.json();
+        setResendSegmentOptions(data.segments || []);
+      } catch (err) {
+        console.error('Error fetching Resend segments:', err);
+      } finally {
+        setResendLoading(false);
+      }
+    };
+
+    fetchMondayOptions();
+    fetchResendSegments();
   }, []);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -348,7 +382,8 @@ export default function MainForm() {
     }
 
     try {
-      const response = await fetch('/api/monday', {
+      // Submit to Monday.com
+      const mondayResponse = await fetch('/api/monday', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -366,13 +401,33 @@ export default function MainForm() {
         }),
       });
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to submit form');
+      if (!mondayResponse.ok) {
+        const errorData = await mondayResponse.json();
+        throw new Error(errorData.error || 'Failed to submit to Monday.com');
       }
 
-      // TODO: Add Resend.com integration
-      console.log('Resend segments:', formData.resendSegments);
+      // Submit to Resend - create contact and add to segments
+      const nameParts = formData.fullName.trim().split(' ');
+      const firstName = nameParts[0] || '';
+      const lastName = nameParts.slice(1).join(' ') || '';
+
+      const resendResponse = await fetch('/api/resend', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email: formData.email,
+          firstName,
+          lastName,
+          segmentIds: formData.resendSegments,
+        }),
+      });
+
+      if (!resendResponse.ok) {
+        const errorData = await resendResponse.json();
+        throw new Error(errorData.error || 'Failed to add contact to Resend');
+      }
 
       setSuccess(true);
       setFormData(initialFormData);
@@ -476,7 +531,7 @@ export default function MainForm() {
             value={formData.role}
             onChange={handleChange}
             className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent text-gray-900"
-            placeholder="Software Engineer"
+            placeholder="CEO, CTO, Founder..."
           />
         </div>
       </div>
@@ -553,11 +608,12 @@ export default function MainForm() {
         <label className="block text-sm font-medium text-gray-700 mb-1">
           Resend Segment <span className="text-red-500">*</span>
         </label>
-        <SimpleMultiSelect
-          options={RESEND_SEGMENT_OPTIONS}
+        <ResendSegmentSelect
+          options={resendSegmentOptions}
           selected={formData.resendSegments}
           onChange={(value) => setFormData((prev) => ({ ...prev, resendSegments: value }))}
           placeholder="Select segments..."
+          loading={resendLoading}
         />
       </div>
 
@@ -578,7 +634,7 @@ export default function MainForm() {
 
       <button
         type="submit"
-        disabled={loading || optionsLoading}
+        disabled={loading || optionsLoading || resendLoading}
         className="w-full py-3 px-4 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white font-medium rounded-lg transition-colors flex items-center justify-center gap-2"
       >
         {loading ? (
