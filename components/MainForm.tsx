@@ -323,8 +323,10 @@ export default function MainForm() {
           throw new Error('Failed to fetch options');
         }
         const data = await response.json();
-        setAreaOfExpertiseOptions(data.areaOfExpertise || []);
-        setLabelOptions(data.labels || []);
+        const sortByName = <T extends { name: string }>(arr: T[]) =>
+          [...arr].sort((a, b) => a.name.localeCompare(b.name));
+        setAreaOfExpertiseOptions(sortByName(data.areaOfExpertise || []));
+        setLabelOptions(sortByName(data.labels || []));
       } catch (err) {
         console.error('Error fetching Monday.com options:', err);
         setError('Failed to load form options. Please refresh the page.');
@@ -340,7 +342,10 @@ export default function MainForm() {
           throw new Error('Failed to fetch Resend segments');
         }
         const data = await response.json();
-        setResendSegmentOptions(data.segments || []);
+        const segments = (data.segments || []).sort((a: ResendSegment, b: ResendSegment) =>
+          a.name.localeCompare(b.name)
+        );
+        setResendSegmentOptions(segments);
       } catch (err) {
         console.error('Error fetching Resend segments:', err);
       } finally {
