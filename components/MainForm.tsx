@@ -14,6 +14,7 @@ import {
   faTimes,
   faSearch,
   faTag,
+  faUserTie,
 } from '@fortawesome/free-solid-svg-icons';
 import { faLinkedin as faLinkedinBrand } from '@fortawesome/free-brands-svg-icons';
 
@@ -36,6 +37,7 @@ interface FormData {
   location: string;
   areaOfExpertise: number[];
   labels: number[];
+  relationshipOwner: number[];
   resendSegments: string[];
   notes: string;
 }
@@ -49,6 +51,7 @@ const initialFormData: FormData = {
   location: '',
   areaOfExpertise: [],
   labels: [],
+  relationshipOwner: [],
   resendSegments: [],
   notes: '',
 };
@@ -313,7 +316,9 @@ export default function MainForm() {
   const [resendLoading, setResendLoading] = useState(true);
   const [areaOfExpertiseOptions, setAreaOfExpertiseOptions] = useState<DropdownOption[]>([]);
   const [labelOptions, setLabelOptions] = useState<DropdownOption[]>([]);
+  const [relationshipOwnerOptions, setRelationshipOwnerOptions] = useState<DropdownOption[]>([]);
   const [resendSegmentOptions, setResendSegmentOptions] = useState<ResendSegment[]>([]);
+  const [columnIds, setColumnIds] = useState<{ relationshipOwner?: string; date?: string }>({});
 
   useEffect(() => {
     const fetchMondayOptions = async () => {
@@ -327,6 +332,8 @@ export default function MainForm() {
           [...arr].sort((a, b) => a.name.localeCompare(b.name));
         setAreaOfExpertiseOptions(sortByName(data.areaOfExpertise || []));
         setLabelOptions(sortByName(data.labels || []));
+        setRelationshipOwnerOptions(sortByName(data.relationshipOwner || []));
+        setColumnIds(data.columnIds || {});
       } catch (err) {
         console.error('Error fetching Monday.com options:', err);
         setError('Failed to load form options. Please refresh the page.');
@@ -380,6 +387,12 @@ export default function MainForm() {
       return;
     }
 
+    if (formData.relationshipOwner.length === 0) {
+      setError('Please select at least one relationship owner');
+      setLoading(false);
+      return;
+    }
+
     if (formData.resendSegments.length === 0) {
       setError('Please select at least one Resend segment');
       setLoading(false);
@@ -402,6 +415,9 @@ export default function MainForm() {
           location: formData.location,
           areaOfExpertise: formData.areaOfExpertise,
           labels: formData.labels,
+          relationshipOwner: formData.relationshipOwner,
+          relationshipOwnerColumnId: columnIds.relationshipOwner,
+          dateColumnId: columnIds.date,
           notes: formData.notes,
         }),
       });
@@ -604,6 +620,20 @@ export default function MainForm() {
           options={labelOptions}
           selected={formData.labels}
           onChange={(value) => setFormData((prev) => ({ ...prev, labels: value }))}
+          placeholder="Search and select from Monday.com..."
+          loading={optionsLoading}
+        />
+      </div>
+
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1">
+          <FontAwesomeIcon icon={faUserTie} className="w-4 h-4 mr-1 text-gray-400" />
+          Relationship Owner <span className="text-red-500">*</span>
+        </label>
+        <SearchableMultiSelect
+          options={relationshipOwnerOptions}
+          selected={formData.relationshipOwner}
+          onChange={(value) => setFormData((prev) => ({ ...prev, relationshipOwner: value }))}
           placeholder="Search and select from Monday.com..."
           loading={optionsLoading}
         />

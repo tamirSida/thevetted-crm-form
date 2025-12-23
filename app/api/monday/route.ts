@@ -58,6 +58,8 @@ export async function GET() {
 
     const areaOfExpertiseColumn = columns.find((col) => col.id === 'dropdown5__1');
     const labelColumn = columns.find((col) => col.id === 'dropdown_mkrv1p9m');
+    const relationshipOwnerColumn = columns.find((col) => col.id === 'person');
+    const dateColumn = columns.find((col) => col.type === 'date');
 
     const parseDropdownOptions = (settingsStr: string): MondayLabel[] => {
       try {
@@ -75,6 +77,11 @@ export async function GET() {
       ? parseDropdownOptions(labelColumn.settings_str)
       : [];
 
+    // Fetch users for the people column
+    const usersQuery = `{ users { id name } }`;
+    const usersData = await mondayRequest(usersQuery);
+    const users = usersData.data?.users || [];
+
     return NextResponse.json({
       areaOfExpertise: areaOfExpertiseOptions.map((opt) => ({
         id: opt.id,
@@ -84,6 +91,14 @@ export async function GET() {
         id: opt.id,
         name: opt.name,
       })),
+      relationshipOwner: users.map((user: { id: string; name: string }) => ({
+        id: parseInt(user.id, 10),
+        name: user.name,
+      })),
+      columnIds: {
+        relationshipOwner: relationshipOwnerColumn?.id,
+        date: dateColumn?.id,
+      },
     });
   } catch (error) {
     console.error('Error fetching Monday.com options:', error);
@@ -103,7 +118,10 @@ interface CreateItemRequest {
   location?: string;
   areaOfExpertise: number[];
   labels: number[];
+  relationshipOwner: number[];
   notes?: string;
+  dateColumnId?: string;
+  relationshipOwnerColumnId?: string;
 }
 
 export async function POST(request: Request) {
@@ -143,6 +161,19 @@ export async function POST(request: Request) {
 
     if (body.labels && body.labels.length > 0) {
       columnValues['dropdown_mkrv1p9m'] = { ids: body.labels };
+    }
+
+    if (body.relationshipOwner && body.relationshipOwner.length > 0 && body.relationshipOwnerColumnId) {
+      // People column uses personsAndTeams format
+      columnValues[body.relationshipOwnerColumnId] = {
+        personsAndTeams: body.relationshipOwner.map((id: number) => ({ id, kind: 'person' })),
+      };
+    }
+
+    if (body.dateColumnId) {
+      const today = new Date();
+      const dateStr = today.toISOString().split('T')[0]; // YYYY-MM-DD format
+      columnValues[body.dateColumnId] = { date: dateStr };
     }
 
     if (body.notes) {
