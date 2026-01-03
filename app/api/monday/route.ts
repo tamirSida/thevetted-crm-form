@@ -112,6 +112,7 @@ export async function GET() {
 interface CreateItemRequest {
   fullName: string;
   email: string;
+  phone?: string;
   employer?: string;
   role?: string;
   linkedin?: string;
@@ -138,6 +139,10 @@ export async function POST(request: Request) {
     const columnValues: Record<string, unknown> = {
       email__1: { email: body.email, text: body.email },
     };
+
+    if (body.phone) {
+      columnValues['text_mkz7kg6a'] = body.phone;
+    }
 
     if (body.employer) {
       columnValues['text__1'] = body.employer;

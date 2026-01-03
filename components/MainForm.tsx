@@ -5,6 +5,7 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
   faUser,
   faEnvelope,
+  faPhone,
   faBuilding,
   faBriefcase,
   faMapMarkerAlt,
@@ -31,6 +32,7 @@ interface ResendSegment {
 interface FormData {
   fullName: string;
   email: string;
+  phone: string;
   employer: string;
   role: string;
   linkedin: string;
@@ -45,6 +47,7 @@ interface FormData {
 const initialFormData: FormData = {
   fullName: '',
   email: '',
+  phone: '',
   employer: '',
   role: '',
   linkedin: '',
@@ -409,6 +412,7 @@ export default function MainForm() {
         body: JSON.stringify({
           fullName: formData.fullName,
           email: formData.email,
+          phone: formData.phone,
           employer: formData.employer,
           role: formData.role,
           linkedin: formData.linkedin,
@@ -513,6 +517,26 @@ export default function MainForm() {
             required
             className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent text-gray-900"
             placeholder="john@example.com"
+          />
+        </div>
+      </div>
+
+      <div>
+        <label htmlFor="phone" className="block text-sm font-medium text-gray-700 mb-1">
+          Phone #
+        </label>
+        <div className="relative">
+          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
+            <FontAwesomeIcon icon={faPhone} className="w-4 h-4" />
+          </span>
+          <input
+            id="phone"
+            name="phone"
+            type="tel"
+            value={formData.phone}
+            onChange={handleChange}
+            className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent text-gray-900"
+            placeholder="(555) 123-4567"
           />
         </div>
       </div>
