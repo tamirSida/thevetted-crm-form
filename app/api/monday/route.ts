@@ -123,6 +123,7 @@ interface CreateItemRequest {
   notes?: string;
   dateColumnId?: string;
   relationshipOwnerColumnId?: string;
+  directory?: boolean;
 }
 
 export async function POST(request: Request) {
@@ -183,6 +184,10 @@ export async function POST(request: Request) {
 
     if (body.notes) {
       columnValues['text_mkygas91'] = body.notes;
+    }
+
+    if (body.directory !== undefined) {
+      columnValues['boolean_mkzcte35'] = { checked: body.directory };
     }
 
     const mutation = `

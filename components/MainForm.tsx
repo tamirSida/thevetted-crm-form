@@ -16,6 +16,8 @@ import {
   faSearch,
   faTag,
   faUserTie,
+  faCamera,
+  faTrash,
 } from '@fortawesome/free-solid-svg-icons';
 import { faLinkedin as faLinkedinBrand } from '@fortawesome/free-brands-svg-icons';
 
@@ -42,6 +44,7 @@ interface FormData {
   relationshipOwner: number[];
   resendSegments: string[];
   notes: string;
+  directory: boolean;
 }
 
 const initialFormData: FormData = {
@@ -57,6 +60,7 @@ const initialFormData: FormData = {
   relationshipOwner: [],
   resendSegments: [],
   notes: '',
+  directory: false,
 };
 
 interface SearchableMultiSelectProps {
@@ -322,6 +326,10 @@ export default function MainForm() {
   const [relationshipOwnerOptions, setRelationshipOwnerOptions] = useState<DropdownOption[]>([]);
   const [resendSegmentOptions, setResendSegmentOptions] = useState<ResendSegment[]>([]);
   const [columnIds, setColumnIds] = useState<{ relationshipOwner?: string; date?: string }>({});
+  const [photo, setPhoto] = useState<File | null>(null);
+  const [photoPreview, setPhotoPreview] = useState<string | null>(null);
+  const [photoUploading, setPhotoUploading] = useState(false);
+  const photoInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     const fetchMondayOptions = async () => {
@@ -370,6 +378,62 @@ export default function MainForm() {
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
+  };
+
+  // Parse fullName into firstName and lastName
+  const getNameParts = () => {
+    const nameParts = formData.fullName.trim().split(/\s+/);
+    const firstName = nameParts[0] || '';
+    const lastName = nameParts.slice(1).join('_') || '';
+    return { firstName, lastName };
+  };
+
+  // Check if both first and last name are present
+  const hasFullName = () => {
+    const { firstName, lastName } = getNameParts();
+    return firstName.length > 0 && lastName.length > 0;
+  };
+
+  // Generate base name for photo (without extension) - matches vetted_alumni format
+  const generateBaseName = () => {
+    return formData.fullName
+      .toLowerCase()
+      .replace(/[^a-z\s]/g, '')
+      .trim()
+      .replace(/\s+/g, '_');
+  };
+
+  const handlePhotoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Validate file type
+    const validTypes = ['image/jpeg', 'image/jpg', 'image/png'];
+    if (!validTypes.includes(file.type)) {
+      setError('Invalid file type. Only JPG, JPEG, and PNG are allowed.');
+      return;
+    }
+
+    // Validate file size (5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      setError('File too large. Maximum size is 5MB.');
+      return;
+    }
+
+    setPhoto(file);
+    setPhotoPreview(URL.createObjectURL(file));
+    setError('');
+  };
+
+  const removePhoto = () => {
+    setPhoto(null);
+    if (photoPreview) {
+      URL.revokeObjectURL(photoPreview);
+    }
+    setPhotoPreview(null);
+    if (photoInputRef.current) {
+      photoInputRef.current.value = '';
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -423,6 +487,7 @@ export default function MainForm() {
           relationshipOwnerColumnId: columnIds.relationshipOwner,
           dateColumnId: columnIds.date,
           notes: formData.notes,
+          directory: formData.directory,
         }),
       });
 
@@ -430,6 +495,9 @@ export default function MainForm() {
         const errorData = await mondayResponse.json();
         throw new Error(errorData.error || 'Failed to submit to Monday.com');
       }
+
+      const mondayData = await mondayResponse.json();
+      const itemId = mondayData.item?.id;
 
       // Submit to Resend - create contact and add to segments
       const nameParts = formData.fullName.trim().split(' ');
@@ -454,8 +522,30 @@ export default function MainForm() {
         throw new Error(errorData.error || 'Failed to add contact to Resend');
       }
 
+      // Upload photo if provided
+      if (photo && itemId) {
+        setPhotoUploading(true);
+        const photoFormData = new FormData();
+        photoFormData.append('file', photo);
+        photoFormData.append('baseName', generateBaseName());
+        photoFormData.append('itemId', itemId);
+
+        const photoResponse = await fetch('/api/photo/upload', {
+          method: 'POST',
+          body: photoFormData,
+        });
+
+        if (!photoResponse.ok) {
+          const errorData = await photoResponse.json();
+          console.error('Photo upload failed:', errorData.error);
+          // Don't throw - photo is optional, form submission was successful
+        }
+        setPhotoUploading(false);
+      }
+
       setSuccess(true);
       setFormData(initialFormData);
+      removePhoto();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to submit form. Please try again.');
       console.error(err);
@@ -623,6 +713,58 @@ export default function MainForm() {
 
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-1">
+          <FontAwesomeIcon icon={faCamera} className="w-4 h-4 mr-1 text-gray-400" />
+          Profile Picture
+        </label>
+        {!hasFullName() && (
+          <p className="text-sm text-gray-500 mb-2">
+            Please enter first and last name to upload a photo
+          </p>
+        )}
+        <input
+          ref={photoInputRef}
+          type="file"
+          accept=".jpg,.jpeg,.png"
+          onChange={handlePhotoSelect}
+          disabled={!hasFullName()}
+          className="hidden"
+        />
+        {photoPreview ? (
+          <div className="flex items-center gap-4">
+            <img
+              src={photoPreview}
+              alt="Preview"
+              className="w-20 h-20 object-cover rounded-lg border border-gray-300"
+            />
+            <div className="flex-1">
+              <p className="text-sm text-gray-600 mb-1">
+                Will be saved as: <span className="font-mono text-xs">{generateBaseName()}.{photo?.type === 'image/png' ? 'png' : 'jpg'}</span>
+              </p>
+              <button
+                type="button"
+                onClick={removePhoto}
+                className="text-sm text-red-600 hover:text-red-700 flex items-center gap-1"
+              >
+                <FontAwesomeIcon icon={faTrash} className="w-3 h-3" />
+                Remove
+              </button>
+            </div>
+          </div>
+        ) : (
+          <button
+            type="button"
+            onClick={() => photoInputRef.current?.click()}
+            disabled={!hasFullName()}
+            className="w-full py-3 px-4 border-2 border-dashed border-gray-300 rounded-lg text-gray-500 hover:border-blue-500 hover:text-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          >
+            <FontAwesomeIcon icon={faCamera} className="w-4 h-4 mr-2" />
+            Click to upload photo (JPG, PNG, max 5MB)
+          </button>
+        )}
+      </div>
+
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1">
           <FontAwesomeIcon icon={faLightbulb} className="w-4 h-4 mr-1 text-gray-400" />
           Area of Expertise <span className="text-red-500">*</span>
         </label>
@@ -683,12 +825,26 @@ export default function MainForm() {
         <textarea
           id="notes"
           name="notes"
-          value={formData.notes}
+          value={formData.notes || ''}
           onChange={handleChange}
           rows={4}
           className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent text-gray-900 resize-none"
           placeholder="Additional notes..."
         />
+      </div>
+
+      <div className="flex items-center gap-3">
+        <input
+          id="directory"
+          name="directory"
+          type="checkbox"
+          checked={formData.directory}
+          onChange={(e) => setFormData((prev) => ({ ...prev, directory: e.target.checked }))}
+          className="w-5 h-5 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+        />
+        <label htmlFor="directory" className="text-sm font-medium text-gray-700">
+          Add to Directory
+        </label>
       </div>
 
       <button
@@ -699,7 +855,7 @@ export default function MainForm() {
         {loading ? (
           <>
             <FontAwesomeIcon icon={faSpinner} className="w-4 h-4 animate-spin" />
-            Submitting...
+            {photoUploading ? 'Uploading photo...' : 'Submitting...'}
           </>
         ) : (
           'Add Contact'
