@@ -1,6 +1,8 @@
 'use client';
 
 import { useState } from 'react';
+import { createUserWithEmailAndPassword } from 'firebase/auth';
+import { auth } from '@/lib/firebase';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faEnvelope, faLock, faSpinner, faCheck, faEye, faEyeSlash } from '@fortawesome/free-solid-svg-icons';
 
@@ -19,23 +21,18 @@ export default function AddUsers() {
     setSuccess('');
 
     try {
-      const response = await fetch('/api/users', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || 'Failed to create user');
-      }
-
+      await createUserWithEmailAndPassword(auth, email, password);
       setSuccess(`User ${email} created successfully`);
       setEmail('');
       setPassword('');
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to create user');
+    } catch (err: any) {
+      if (err.code === 'auth/email-already-in-use') {
+        setError('A user with this email already exists');
+      } else if (err.code === 'auth/weak-password') {
+        setError('Password must be at least 6 characters');
+      } else {
+        setError(err.message || 'Failed to create user');
+      }
     } finally {
       setLoading(false);
     }
